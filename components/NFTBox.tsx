@@ -3,6 +3,9 @@ import { useEffect, useState } from "react"
 import { useWeb3Contract, useMoralis } from "react-moralis"
 import nftMarketplaceAbi from "../constants/NftMarketplace.json"
 import nftAbi from "../constants/BasicNft.json"
+import Image from "next/image" //can't be used on static sites
+import { Card } from "web3uikit"
+import { ethers } from "ethers"
 
 interface NFTBoxProps {
     price?: number
@@ -10,6 +13,21 @@ interface NFTBoxProps {
     tokenId: string
     marketplaceAddress: string
     seller?: string
+}
+
+const truncateStr = (fullStr: string, strLen: number) => {
+    if (fullStr.length <= strLen) return fullStr
+
+    const separator = "..."
+    const separatorLength = separator.length
+    const charsToShow = strLen - separatorLength
+    const frontChars = Math.ceil(charsToShow / 2)
+    const backChars = Math.floor(charsToShow / 2)
+    return (
+        fullStr.substring(0, frontChars) +
+        separator +
+        fullStr.substring(fullStr.length - backChars)
+    )
 }
 
 const NFTBox: NextPage<NFTBoxProps> = ({
@@ -21,8 +39,11 @@ const NFTBox: NextPage<NFTBoxProps> = ({
 }: NFTBoxProps) => {
     //call the token URi and then call the image uri to show the image(2 api request)
     //then save image as a state variable in this component
-    const { isWeb3Enabled } = useMoralis()
+    const { isWeb3Enabled, account } = useMoralis()
     const [imageURI, setimageURI] = useState("")
+    const [tokenName, settokenName] = useState("")
+    const [tokenDescription, settokenDescription] = useState("")
+
     const { runContractFunction: getTokenURI } = useWeb3Contract({
         abi: nftAbi,
         contractAddress: nftAddress,
@@ -47,6 +68,8 @@ const NFTBox: NextPage<NFTBoxProps> = ({
             //We could render the image on our server, and just call our server(since using moralis)
             //For testnets and Mainnet-> use moralis server hooks(ex. useNFTBalance())
             //have the world adopt ipfs
+            settokenName(tokenURIResponse.name)
+            settokenDescription(tokenURIResponse.description)
         }
     }
     useEffect(() => {
@@ -54,6 +77,39 @@ const NFTBox: NextPage<NFTBoxProps> = ({
             updateUI()
         }
     }, [isWeb3Enabled])
+
+    const isOwnedbyUser = seller === account || seller === undefined
+    const formattedSellerAddress = isOwnedbyUser ? "you" : truncateStr(seller || "", 15)
+
+    return (
+        <div>
+            <div>
+                {imageURI ? (
+                    <Card title={tokenName} description={tokenDescription}>
+                        <div className="p-2">
+                            <div className="flex flex-col items-end gap-2">
+                                <div>#{tokenId}</div>
+                                <div className="italic text-sm">
+                                    Owned by {formattedSellerAddress}
+                                </div>
+                                <Image
+                                    loader={() => imageURI}
+                                    src={imageURI}
+                                    height="200"
+                                    width="200"
+                                />
+                                <div className="font-bold">
+                                    {ethers.utils.formatUnits(price!, "ether")} ETH
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                ) : (
+                    <div>Loading...</div>
+                )}
+            </div>
+        </div>
+    )
 }
 
 export default NFTBox
