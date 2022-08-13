@@ -1,7 +1,6 @@
 import type { NextPage } from "next"
-
-import Image from "next/image"
 import styles from "../styles/Home.module.css"
+import { useMoralisQuery } from "react-moralis"
 
 const Home: NextPage = () => {
     //how do we show the recently listed NFTs?
@@ -19,7 +18,24 @@ const Home: NextPage = () => {
     //we can create more features with a centralized back end to start
     // as more decentralized tools are being created
     //local development
-    return <div className={styles.container}>Hi</div>
+    const { data: listedNfts, isFetching: fetchingListedNfts } = useMoralisQuery(
+        //2 parameters(tableName, function for the query)
+        "ActivItem",
+        (query) => {
+            query.limit(10).descending("tokenId")
+        }
+    )
+    console.log(listedNfts)
+    
+    return (<div className={styles.container}>
+        {fetchingListedNfts ? (<div>Loading...</div>) :  listedNfts.map(nft) => {
+            console.log(nft.attributes)
+            const {price, nftAddress, tokenId, marketplaceAddress, seller} = nft.attributes
+            return (
+                <div>Price: {price}. NftAddress: {nftAddress}. TokenId: {tokenId}. Seller: {seller} </div>
+            )
+        }}
+    </div>)
 }
 
 export default Home
